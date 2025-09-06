@@ -1,0 +1,108 @@
+{
+  "component": {
+    "name": "GingerImg",
+    "type": "FRAME",
+    "id": "0:17",
+    "dimensions": {
+      "width": 821,
+      "height": 159,
+      "x": 96,
+      "y": 491
+    }
+  },
+  "hierarchy": {
+    "path": "Page 1 > Shopping cart > GingerImg",
+    "cssSelector": "PAGE[name=\"Page 1\"] FRAME[name=\"Shopping cart\"] FRAME[name=\"GingerImg\"]",
+    "depth": 2,
+    "parent": {
+      "name": "Shopping cart",
+      "type": "FRAME",
+      "id": "0:3"
+    },
+    "children": [
+      {
+        "name": "Organic ginger",
+        "type": "TEXT",
+        "count": 1
+      },
+      {
+        "name": "$12.99 / lb",
+        "type": "TEXT",
+        "count": 1
+      },
+      {
+        "name": "Input field",
+        "type": "FRAME",
+        "count": 1
+      },
+      {
+        "name": "$6.50",
+        "type": "TEXT",
+        "count": 1
+      },
+      {
+        "name": "noonbrew-ziCb4_EKmak-unsplash",
+        "type": "RECTANGLE",
+        "count": 1
+      }
+    ],
+    "siblings": {
+      "position": 2,
+      "total": 6,
+      "previous": "Tomatos",
+      "next": "Onion"
+    }
+  },
+  "relationships": null,
+  "visual": {
+    "opacity": 1,
+    "fills": [
+      {
+        "type": "SOLID",
+        "visible": true,
+        "opacity": 1,
+        "blendMode": "NORMAL",
+        "color": {
+          "r": 0.9803921580314636,
+          "g": 0.9803921580314636,
+          "b": 0.9607843160629272
+        },
+        "boundVariables": {}
+      }
+    ],
+    "strokes": [
+      {
+        "type": "SOLID",
+        "visible": true,
+        "opacity": 1,
+        "blendMode": "NORMAL",
+        "color": {
+          "r": 0.9019607901573181,
+          "g": 0.9019607901573181,
+          "b": 0.9019607901573181
+        },
+        "boundVariables": {}
+      }
+    ],
+    "effects": [],
+    "blendMode": "PASS_THROUGH"
+  },
+  "layout": {
+    "layoutMode": "NONE",
+    "layoutWrap": "NO_WRAP",
+    "itemSpacing": 0,
+    "paddingTop": 0,
+    "paddingRight": 0,
+    "paddingBottom": 0,
+    "paddingLeft": 0,
+    "primaryAxisAlignItems": "MIN",
+    "counterAxisAlignItems": "MIN",
+    "layoutGrow": 0,
+    "layoutAlign": "INHERIT",
+    "constraints": {
+      "horizontal": "STRETCH",
+      "vertical": "MIN"
+    }
+  },
+  "text": null
+}

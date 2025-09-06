@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Component Metadata Viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #374151;
+            background: #f9fafb;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Compact Header */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .selection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 11px;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .header-divider {
+            height: 16px;
+            width: 1px;
+            background: #d1d5db;
+        }
+
+        .current-selection {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .type-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .type-badge.frame { background: #dbeafe; color: #1d4ed8; }
+        .type-badge.text { background: #dcfce7; color: #166534; }
+        .type-badge.component { background: #fce7f3; color: #be185d; }
+        .type-badge.instance { background: #fef3c7; color: #d97706; }
+        .type-badge.group { background: #f3e8ff; color: #7c3aed; }
+
+        .node-id {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .node-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-input {
+            width: 140px;
+            padding: 4px 24px 4px 24px;
+            font-size: 11px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 1px #3b82f6;
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            color: #9ca3af;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            display: none;
+        }
+
+        .search-clear.visible {
+            display: block;
+        }
+
+        .search-clear:hover {
+            color: #6b7280;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            color: #9ca3af;
+        }
+
+        /* Main Layout */
+        .main-content {
+            flex: 1;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Content Panel Styles */
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            background: #f9fafb;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .component-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .component-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+
+        .component-card:hover {
+            border-color: #d1d5db;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .component-card.modified {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 1px #3b82f6;
+        }
+
+        .component-card.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 1px #ef4444;
+        }
+
+        .component-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .component-name-section {
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .component-name-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: inherit;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .component-name-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 1px #3b82f6;
+        }
+
+        .component-name-input.error {
+            border-color: #ef4444;
+        }
+
+        .component-name-input.error:focus {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 1px #ef4444;
+        }
+
+        .validation-error {
+            margin-top: 6px;
+            padding: 6px 8px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #dc2626;
+        }
+
+        /* Component Tabs */
+        .component-tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .component-tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            font-size: 11px;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .component-tab:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .component-tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+            background: white;
+        }
+
+        .component-tab-content {
+            padding: 16px;
+            display: none;
+        }
+
+        .component-tab-content.active {
+            display: block;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            font-size: 11px;
+            position: relative;
+            padding-right: 24px;
+        }
+
+        .detail-copy-icon {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            padding: 2px;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+            opacity: 0;
+        }
+
+        .detail-row:hover .detail-copy-icon {
+            opacity: 1;
+        }
+
+        .detail-copy-icon:hover {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .detail-copy-icon.copied {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .detail-copy-icon.error {
+            background: #fecaca;
+            color: #dc2626;
+        }
+
+        .detail-label {
+            color: #6b7280;
+            font-weight: 500;
+            min-width: 60px;
+        }
+
+        .detail-value {
+            color: #374151;
+            text-align: right;
+            word-break: break-word;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+
+        .path-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .path-item {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .path-item.current {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        .path-arrow {
+            width: 12px;
+            height: 12px;
+            color: #9ca3af;
+        }
+
+        .copy-btn {
+            padding: 2px 6px;
+            font-size: 10px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 3px;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .copy-btn.copied {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .copy-btn.error {
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+
+        .revert-btn:disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            border-color: #e5e7eb;
+            cursor: not-allowed;
+        }
+
+        .revert-btn:not(:disabled) {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+
+        .revert-btn:not(:disabled):hover {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+
+        .no-selection {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+        }
+
+        .no-selection h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        /* Component Properties Tab Styles */
+        .properties-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .properties-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+
+        .property-group {
+            background: #f9fafb;
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .property-group-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .property-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .property-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .property-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .property-value {
+            color: #374151;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 10px;
+        }
+
+        .color-value {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .color-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            border: 1px solid #d1d5db;
+        }
+
+        .text-properties-full {
+            grid-column: 1 / -1;
+        }
+
+        /* Save Section */
+        .save-section {
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .save-info {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .changes-count {
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .save-btn {
+            padding: 6px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .save-btn:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .save-btn:disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .save-btn.saving {
+            background: #10b981;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: #f3f4f6;
+            border-top: 1px solid #e5e7eb;
+            padding: 4px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <!-- Compact Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="selection-status">
+                <div class="status-dot"></div>
+                <span class="status-text" id="status-text">Loading...</span>
+            </div>
+            
+            <div class="header-divider"></div>
+            
+            <div class="current-selection" id="current-selection">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+        </div>
+        
+        <div class="header-right">
+            <div class="search-box">
+                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input type="text" class="search-input" placeholder="Search components..." id="search-input">
+                <button class="search-clear" id="search-clear" onclick="clearSearch()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <button onclick="closePlugin()" style="background:none;border:none;color:#6b7280;cursor:pointer;padding:4px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="content-panel">
+            <div class="panel-header">
+                <div class="panel-title">Components</div>
+            </div>
+            <div class="panel-content" id="main-content">
+                <div class="loading">Loading selection data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Section -->
+    <div class="save-section" id="save-section" style="display: none;">
+        <div class="save-info">
+            <span class="changes-count" id="changes-count">0</span> changes
+        </div>
+        <button class="save-btn" id="save-btn" onclick="saveChanges()">Save Changes</button>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <span>Component Inspector v2.0</span>
+            <span>•</span>
+            <span>Ready</span>
+        </div>
+        <div class="status-right">
+            <span>⌘C to copy</span>
+            <span>⌘S to save</span>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        let selectedComponentIndex = 0;
+        let componentChanges = {}; // Track changes: { nodeId: newName }
+        let isSaving = false;
+        let searchTerm = '';
+
+        function closePlugin() {
+            parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
+        }
+
+        // Helper Functions
+        function getTypeColor(type) {
+            const colors = {
+                'FRAME': 'frame',
+                'TEXT': 'text', 
+                'COMPONENT': 'component',
+                'INSTANCE': 'instance',
+                'GROUP': 'group'
+            };
+            return colors[type] || 'frame';
+        }
+
+        function formatValue(value) {
+            if (value === null || value === undefined) return '—';
+            if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+            if (typeof value === 'number') return Math.round(value * 100) / 100;
+            if (typeof value === 'object') return JSON.stringify(value);
+            return String(value);
+        }
+
+        function formatColor(fill) {
+            if (fill && fill.type === 'SOLID') {
+                const r = Math.round(fill.color.r * 255);
+                const g = Math.round(fill.color.g * 255);
+                const b = Math.round(fill.color.b * 255);
+                const a = fill.opacity || 1;
+                return `rgba(${r}, ${g}, ${b}, ${a})`;
+            }
+            return fill?.type || '#FFFFFF';
+        }
+
+        // Header Management
+        function updateHeader() {
+            const statusText = document.getElementById('status-text');
+            const currentSelection = document.getElementById('current-selection');
+            
+            if (!currentData || !currentData.hasSelection) {
+                statusText.textContent = 'No selection';
+                currentSelection.innerHTML = '';
+                return;
+            }
+
+            const totalCount = currentData.count;
+            let displayCount = totalCount;
+            let statusMsg = `${totalCount} item${totalCount !== 1 ? 's' : ''} selected`;
+            
+            // Update status if search is active
+            if (searchTerm) {
+                const searchResults = searchComponents(currentData.metadata, searchTerm);
+                displayCount = searchResults.length;
+                statusMsg = `${displayCount} of ${totalCount} components found`;
+            }
+            
+            statusText.textContent = statusMsg;
+            
+            // Show current selection info if single selection and no search
+            if (totalCount === 1 && !searchTerm) {
+                const metadata = currentData.metadata[selectedComponentIndex];
+                currentSelection.innerHTML = `
+                    <span class="type-badge ${getTypeColor(metadata.basic.type)}">${metadata.basic.type}</span>
+                    <span class="node-id">${metadata.basic.id}</span>
+                    <span class="node-name">${metadata.basic.name}</span>
+                `;
+            } else if (searchTerm) {
+                currentSelection.innerHTML = `<span class="node-name">Search: "${searchTerm}"</span>`;
+            } else {
+                currentSelection.innerHTML = `<span class="node-name">Multiple components</span>`;
+            }
+        }
+
+        // Search Helper Functions
+        function clearSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchClear = document.getElementById('search-clear');
+            searchInput.value = '';
+            searchTerm = '';
+            searchClear.classList.remove('visible');
+            renderAll();
+        }
+
+        function updateSearchUI() {
+            const searchInput = document.getElementById('search-input');
+            const searchClear = document.getElementById('search-clear');
+            
+            if (searchInput && searchClear) {
+                if (searchInput.value.length > 0) {
+                    searchClear.classList.add('visible');
+                } else {
+                    searchClear.classList.remove('visible');
+                }
+            }
+        }
+
+        // Main Panel Management
+        function renderMainPanel() {
+            const mainPanel = document.getElementById('main-content');
+            
+            if (!currentData || !currentData.hasSelection) {
+                mainPanel.innerHTML = `
+                    <div class="no-selection">
+                        <h3>No Selection</h3>
+                        <p>Select one or more components in Figma to view and edit their properties.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Apply search filtering
+            const searchResults = searchComponents(currentData.metadata, searchTerm);
+            
+            if (searchResults.length === 0 && searchTerm) {
+                mainPanel.innerHTML = `
+                    <div class="no-selection">
+                        <h3>No Results</h3>
+                        <p>No components found matching "${searchTerm}"</p>
+                        <button class="copy-btn" onclick="clearSearch()" style="margin-top: 8px;">Clear Search</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const componentsHtml = searchResults.map(({ component: metadata, score }) => {
+                const currentName = componentChanges[metadata.basic.id] !== undefined ? 
+                    componentChanges[metadata.basic.id] : metadata.basic.name;
+                const isModified = componentChanges[metadata.basic.id] !== undefined;
+                const validationError = validateName(currentName, metadata.basic.id);
+                
+                let cardClass = 'component-card';
+                if (isModified) cardClass += ' modified';
+                if (validationError) cardClass += ' error';
+                
+                // Apply search highlighting
+                const highlightedName = highlightMatch(metadata.basic.name, searchTerm);
+                const highlightedId = highlightMatch(metadata.basic.id, searchTerm);
+                
+                return `
+                    <div class="${cardClass}" data-node-id="${metadata.basic.id}" data-search-score="${score}">
+                        <div class="component-header">
+                            <span class="type-badge ${getTypeColor(metadata.basic.type)}">${metadata.basic.type}</span>
+                            <span class="node-id">${highlightedId}</span>
+                            <span class="node-name">${highlightedName}</span>
+                            ${searchTerm ? `<span style="font-size: 9px; color: #9ca3af; margin-left: auto;">Score: ${Math.round(score)}</span>` : ''}
+                        </div>
+                        
+                        <div class="component-name-section">
+                            <input 
+                                type="text" 
+                                class="component-name-input ${validationError ? 'error' : ''}"
+                                value="${currentName || ''}"
+                                data-original="${metadata.basic.name}"
+                                data-node-id="${metadata.basic.id}"
+                                placeholder="Enter component name..."
+                                onchange="handleNameChange(this)"
+                                oninput="handleNameInput(this)"
+                            />
+                            ${validationError ? `<div class="validation-error">${validationError}</div>` : ''}
+                        </div>
+                        
+                        <div class="component-tabs">
+                            <button class="component-tab active" onclick="switchComponentTab(this, 'details', '${metadata.basic.id.replace(/'/g, "\\'")}')">Details</button>
+                            <button class="component-tab" onclick="switchComponentTab(this, 'properties', '${metadata.basic.id.replace(/'/g, "\\'")}')">Properties</button>
+                        </div>
+                        
+                        <div class="component-tab-content active" id="details-${metadata.basic.id.replace(':', '_')}">
+                            <div class="detail-row">
+                                <span class="detail-label">NodeId:</span>
+                                <span class="detail-value">${metadata.basic.id}</span>
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${metadata.basic.id.replace(/'/g, "\\'")}', this)" title="Copy node ID">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <span class="detail-label">Path:</span>
+                                <div class="detail-value">
+                                    <div class="path-breadcrumb">
+                                        ${metadata.hierarchy.hierarchicalPath.split(' > ').map((item, idx, arr) => `
+                                            <span class="path-item ${idx === arr.length - 1 ? 'current' : ''}">${item}</span>
+                                            ${idx < arr.length - 1 ? '<svg class="path-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' : ''}
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${metadata.hierarchy.hierarchicalPath.replace(/'/g, "\\'")}', this)" title="Copy path">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="detail-value" style="margin-top: 4px; font-size: 10px; word-break: break-all;">
+                                ${metadata.hierarchy.cssPath}
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${metadata.hierarchy.cssPath.replace(/'/g, "\\'")}', this)" title="Copy CSS selector" style="position: relative; right: auto; top: auto; float: right; margin-top: -2px;">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="detail-row" style="margin-top: 12px;">
+                                <span class="detail-label">Parent:</span>
+                                <span class="detail-value">${metadata.hierarchy.parentDetails?.name || 'None'}</span>
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${(metadata.hierarchy.parentDetails?.name || 'None').replace(/'/g, "\\'")}', this)" title="Copy parent name">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <span class="detail-label">Parent NodeId:</span>
+                                <span class="detail-value">${metadata.hierarchy.parentDetails?.id || 'None'}</span>
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${(metadata.hierarchy.parentDetails?.id || 'None').replace(/'/g, "\\'")}', this)" title="Copy parent node ID">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <span class="detail-label">Total Children:</span>
+                                <span class="detail-value">${metadata.hierarchy.children}</span>
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${metadata.hierarchy.children}', this)" title="Copy children count">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <span class="detail-label">Depth from Root:</span>
+                                <span class="detail-value">${metadata.hierarchy.depth} levels</span>
+                                <button class="detail-copy-icon" onclick="event.stopPropagation(); copyDetailValue('${metadata.hierarchy.depth}', this)" title="Copy depth">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div style="margin-top: 12px; display: flex; gap: 8px;">
+                                <button class="copy-btn" onclick="event.stopPropagation(); copyComponentJSON('${metadata.basic.id.replace(/'/g, "\\'")}', this)">Copy as JSON</button>
+                                <button class="copy-btn revert-btn" onclick="event.stopPropagation(); revertComponentChanges('${metadata.basic.id.replace(/'/g, "\\'")}', this)" ${!isModified ? 'disabled' : ''}>Revert</button>
+                            </div>
+                        </div>
+                        
+                        <div class="component-tab-content" id="properties-${metadata.basic.id.replace(':', '_')}">
+                            ${renderComponentProperties(metadata)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            mainPanel.innerHTML = `<div class="component-list">${componentsHtml}</div>`;
+        }
+
+        // Component Properties Rendering
+        function renderComponentProperties(metadata) {
+            let layoutHtml = '';
+            if (metadata.layout || metadata.basic) {
+                layoutHtml = `
+                    <div class="property-group">
+                        <div class="property-group-title">Layout</div>
+                        <div class="property-row">
+                            <span class="property-label">Width</span>
+                            <span class="property-value">${metadata.basic.width}px</span>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Height</span>
+                            <span class="property-value">${metadata.basic.height}px</span>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">X</span>
+                            <span class="property-value">${metadata.basic.x}</span>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Y</span>
+                            <span class="property-value">${metadata.basic.y}</span>
+                        </div>
+                        ${metadata.layout?.constraints ? `
+                            <div class="property-row">
+                                <span class="property-label">Constraints</span>
+                                <span class="property-value">${metadata.layout.constraints.horizontal}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            let visualHtml = '';
+            if (metadata.visual) {
+                const fillColor = metadata.visual.fills?.[0] ? formatColor(metadata.visual.fills[0]) : '#FFFFFF';
+                visualHtml = `
+                    <div class="property-group">
+                        <div class="property-group-title">Appearance</div>
+                        <div class="property-row">
+                            <span class="property-label">Fill</span>
+                            <div class="color-value">
+                                <div class="color-swatch" style="background-color: ${fillColor}"></div>
+                                <span class="property-value">${fillColor}</span>
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Opacity</span>
+                            <span class="property-value">${Math.round((metadata.visual.opacity || 1) * 100)}%</span>
+                        </div>
+                        ${metadata.visual.effects ? `
+                            <div class="property-row">
+                                <span class="property-label">Effects</span>
+                                <span class="property-value">${metadata.visual.effects.length}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            let textHtml = '';
+            if (metadata.text) {
+                textHtml = `
+                    <div class="property-group text-properties-full">
+                        <div class="property-group-title">Text Properties</div>
+                        <div class="property-row">
+                            <span class="property-label">Font Family</span>
+                            <span class="property-value">${metadata.text.fontName?.family || '—'}</span>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Font Size</span>
+                            <span class="property-value">${metadata.text.fontSize || '—'}px</span>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Characters</span>
+                            <span class="property-value">"${metadata.text.characters || '—'}"</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="properties-grid">
+                    ${layoutHtml}
+                    ${visualHtml}
+                </div>
+                ${textHtml}
+            `;
+        }
+
+        // Component Tab Switching
+        function switchComponentTab(tabElement, tabType, nodeId) {
+            // Get the component card
+            const componentCard = tabElement.closest('.component-card');
+            
+            // Update tab active states
+            const tabs = componentCard.querySelectorAll('.component-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            tabElement.classList.add('active');
+            
+            // Update content active states
+            const contents = componentCard.querySelectorAll('.component-tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            // Convert nodeId to valid CSS selector (replace colons with underscores)
+            const validNodeId = nodeId.replace(':', '_');
+            const targetContent = componentCard.querySelector(`#${tabType}-${validNodeId}`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        }
+
+        // Save Management
+        function updateSaveSection() {
+            const saveSection = document.getElementById('save-section');
+            const changesCount = document.getElementById('changes-count');
+            const saveBtn = document.getElementById('save-btn');
+            
+            const changeCount = Object.keys(componentChanges).length;
+            changesCount.textContent = changeCount;
+            
+            if (changeCount > 0) {
+                saveSection.style.display = 'flex';
+                saveBtn.disabled = false;
+            } else {
+                saveSection.style.display = 'none';
+                saveBtn.disabled = true;
+            }
+            
+            if (isSaving) {
+                saveBtn.textContent = 'Saving...';
+                saveBtn.classList.add('saving');
+            } else {
+                saveBtn.textContent = 'Save Changes';
+                saveBtn.classList.remove('saving');
+            }
+        }
+
+        // Validation and Input Handling
+        function validateName(name, nodeId) {
+            if (!name || name.trim() === '') {
+                return 'Name cannot be empty';
+            }
+            if (name.length > 255) {
+                return 'Name too long (max 255 characters)';
+            }
+            
+            // Check for duplicates in changes
+            const duplicateId = Object.keys(componentChanges).find(id => 
+                id !== nodeId && componentChanges[id] === name
+            );
+            if (duplicateId) {
+                return 'Duplicate name in changes';
+            }
+            
+            // Check for duplicates in current data
+            if (currentData && currentData.metadata) {
+                const duplicate = currentData.metadata.find(item => 
+                    item.basic.id !== nodeId && 
+                    item.basic.name === name &&
+                    componentChanges[item.basic.id] !== name
+                );
+                if (duplicate) {
+                    return 'Duplicate name in selection';
+                }
+            }
+            
+            return null;
+        }
+
+        function handleNameInput(input) {
+            const nodeId = input.dataset.nodeId;
+            const originalName = input.dataset.original;
+            const newName = input.value;
+            
+            // Update changes tracking
+            if (newName === originalName) {
+                delete componentChanges[nodeId];
+            } else {
+                componentChanges[nodeId] = newName;
+            }
+            
+            // Update validation state
+            updateInputValidation(nodeId, newName);
+            updateCardState(nodeId);
+            updateSaveSection();
+        }
+
+        function handleNameChange(input) {
+            handleNameInput(input);
+        }
+
+        function updateInputValidation(nodeId, newName) {
+            const componentCard = document.querySelector(`[data-node-id="${nodeId}"]`);
+            if (!componentCard) return;
+            
+            const input = componentCard.querySelector('.component-name-input');
+            const validationError = validateName(newName, nodeId);
+            
+            // Update input error state
+            input.classList.toggle('error', !!validationError);
+            
+            // Update or remove validation message
+            let validationMsg = componentCard.querySelector('.validation-error');
+            if (validationError) {
+                if (!validationMsg) {
+                    validationMsg = document.createElement('div');
+                    validationMsg.className = 'validation-error';
+                    input.parentNode.appendChild(validationMsg);
+                }
+                validationMsg.textContent = validationError;
+            } else if (validationMsg) {
+                validationMsg.remove();
+            }
+            
+            // Update revert button state
+            updateRevertButton(nodeId);
+        }
+        
+        function updateRevertButton(nodeId) {
+            const componentCard = document.querySelector(`[data-node-id="${nodeId}"]`);
+            if (!componentCard) return;
+            
+            const revertBtn = componentCard.querySelector('.revert-btn');
+            if (!revertBtn) return;
+            
+            const hasChanges = componentChanges[nodeId] !== undefined;
+            revertBtn.disabled = !hasChanges;
+        }
+        
+        function updateCardState(nodeId) {
+            const componentCard = document.querySelector(`[data-node-id="${nodeId}"]`);
+            if (!componentCard) return;
+            
+            const input = componentCard.querySelector('.component-name-input');
+            const originalName = input.dataset.original;
+            const currentName = input.value;
+            const isModified = currentName !== originalName;
+            const validationError = validateName(currentName, nodeId);
+            
+            // Update visual state classes
+            componentCard.classList.toggle('modified', isModified);
+            componentCard.classList.toggle('error', !!validationError);
+            
+            // Update revert button state
+            updateRevertButton(nodeId);
+        }
+
+        // Copy Functionality
+        function copyToClipboard(text, buttonElement) {
+            try {
+                // Use fallback method since navigator.clipboard is not available in Figma plugin environment
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                const success = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                if (success) {
+                    const originalText = buttonElement.textContent;
+                    buttonElement.textContent = '✓';
+                    buttonElement.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        buttonElement.textContent = originalText;
+                        buttonElement.classList.remove('copied');
+                    }, 1500);
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            } catch (error) {
+                console.error('Copy failed:', error);
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = 'Failed';
+                buttonElement.classList.add('error');
+                
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                    buttonElement.classList.remove('error');
+                }, 1500);
+            }
+        }
+
+        function copyComponentJSON(nodeId, buttonElement) {
+            try {
+                if (!currentData || !currentData.metadata) {
+                    throw new Error('No data available');
+                }
+
+                const metadata = currentData.metadata.find(item => item.basic.id === nodeId);
+                if (!metadata) {
+                    throw new Error('Metadata not found');
+                }
+
+                const jsonData = {
+                    component: {
+                        name: metadata.basic.name,
+                        type: metadata.basic.type,
+                        id: metadata.basic.id,
+                        dimensions: {
+                            width: metadata.basic.width,
+                            height: metadata.basic.height,
+                            x: metadata.basic.x,
+                            y: metadata.basic.y
+                        }
+                    },
+                    hierarchy: {
+                        path: metadata.hierarchy.hierarchicalPath,
+                        cssSelector: metadata.hierarchy.cssPath,
+                        depth: metadata.hierarchy.depth,
+                        parent: metadata.hierarchy.parentDetails || null,
+                        children: metadata.hierarchy.childrenDetails || [],
+                        siblings: {
+                            position: metadata.hierarchy.siblingInfo.position,
+                            total: metadata.hierarchy.siblingInfo.totalSiblings,
+                            previous: metadata.hierarchy.siblingInfo.previousSibling || null,
+                            next: metadata.hierarchy.siblingInfo.nextSibling || null
+                        }
+                    },
+                    relationships: metadata.hierarchy.componentRelationship || null,
+                    visual: metadata.visual || null,
+                    layout: metadata.layout || null,
+                    text: metadata.text || null
+                };
+
+                const formattedJSON = JSON.stringify(jsonData, null, 2);
+                copyToClipboard(formattedJSON, buttonElement);
+            } catch (error) {
+                console.error('Error copying JSON:', error);
+                buttonElement.textContent = 'Error';
+                buttonElement.classList.add('error');
+                setTimeout(() => {
+                    buttonElement.textContent = 'Copy as JSON';
+                    buttonElement.classList.remove('error');
+                }, 1500);
+            }
+        }
+
+        // Copy Individual Detail Values
+        function copyDetailValue(value, buttonElement) {
+            try {
+                copyToClipboard(String(value), buttonElement);
+                
+                // Visual feedback for icon button
+                const originalClass = buttonElement.className;
+                buttonElement.classList.add('copied');
+                
+                setTimeout(() => {
+                    buttonElement.className = originalClass;
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error copying detail value:', error);
+                const originalClass = buttonElement.className;
+                buttonElement.classList.add('error');
+                
+                setTimeout(() => {
+                    buttonElement.className = originalClass;
+                }, 1500);
+            }
+        }
+
+        // Revert Component Changes
+        function revertComponentChanges(nodeId, buttonElement) {
+            console.log('Revert called for nodeId:', nodeId);
+            console.log('Current componentChanges:', componentChanges);
+            console.log('Has changes for this node:', componentChanges[nodeId] !== undefined);
+            
+            try {
+                // Remove the change from tracking (even if empty, it's still a change)
+                delete componentChanges[nodeId];
+
+                // Find and update the input field
+                const componentCard = document.querySelector(`[data-node-id="${nodeId}"]`);
+                if (componentCard) {
+                    const input = componentCard.querySelector('.component-name-input');
+                    if (input) {
+                        // Reset to original value
+                        const originalValue = input.dataset.original;
+                        console.log('Reverting to original value:', originalValue);
+                        input.value = originalValue;
+                        
+                        // Trigger input event to update all states
+                        handleNameInput(input);
+                    }
+                }
+
+                // Update save section
+                updateSaveSection();
+
+                // Show brief feedback
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = '↺ Reverted';
+                buttonElement.style.background = '#dcfce7';
+                buttonElement.style.color = '#166534';
+                
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                    buttonElement.style.background = '';
+                    buttonElement.style.color = '';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error reverting changes:', error);
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = 'Error';
+                buttonElement.style.background = '#dc3545';
+                buttonElement.style.color = 'white';
+                
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                    buttonElement.style.background = '';
+                    buttonElement.style.color = '';
+                }, 1500);
+            }
+        }
+
+        // Main Render Function
+        function renderAll() {
+            updateHeader();
+            renderMainPanel();
+            updateSaveSection();
+        }
+
+        // Save Changes
+        function saveChanges() {
+            if (Object.keys(componentChanges).length === 0 || isSaving) {
+                return;
+            }
+            
+            // Validate all changes
+            let hasErrors = false;
+            Object.keys(componentChanges).forEach(nodeId => {
+                if (validateName(componentChanges[nodeId], nodeId)) {
+                    hasErrors = true;
+                }
+            });
+            
+            if (hasErrors) {
+                return;
+            }
+            
+            isSaving = true;
+            updateSaveSection();
+            
+            parent.postMessage({ 
+                pluginMessage: { 
+                    type: 'rename-components', 
+                    changes: componentChanges 
+                } 
+            }, '*');
+        }
+
+        // Fuzzy Search Algorithm
+        function calculateFuzzyScore(searchTerm, text) {
+            if (!searchTerm || !text) return 0;
+            
+            const search = searchTerm.toLowerCase();
+            const target = text.toLowerCase();
+            
+            // Exact match - highest score
+            if (target === search) return 100;
+            
+            // Starts with - high score
+            if (target.startsWith(search)) return 90;
+            
+            // Contains exact substring - medium score
+            if (target.includes(search)) return 70;
+            
+            // Character sequence matching - lower score
+            let score = 0;
+            let searchIndex = 0;
+            let consecutiveMatches = 0;
+            
+            for (let i = 0; i < target.length && searchIndex < search.length; i++) {
+                if (target[i] === search[searchIndex]) {
+                    searchIndex++;
+                    consecutiveMatches++;
+                    score += consecutiveMatches * 2; // Bonus for consecutive matches
+                } else {
+                    consecutiveMatches = 0;
+                }
+            }
+            
+            // Bonus for completing the search term
+            if (searchIndex === search.length) {
+                score += 20;
+            }
+            
+            // Length penalty - shorter strings get higher scores
+            const lengthPenalty = Math.max(0, target.length - search.length) * 0.5;
+            score = Math.max(0, score - lengthPenalty);
+            
+            return Math.min(score, 60); // Cap sequence matching at 60
+        }
+        
+        function searchComponents(components, searchTerm) {
+            if (!searchTerm || searchTerm.trim() === '') {
+                return components.map(comp => ({ component: comp, score: 100 }));
+            }
+            
+            const results = [];
+            
+            components.forEach(metadata => {
+                let maxScore = 0;
+                const searchableFields = [
+                    { text: metadata.basic.name, weight: 1.0 },
+                    { text: metadata.basic.id, weight: 0.8 },
+                    { text: metadata.basic.type, weight: 0.6 },
+                    { text: metadata.hierarchy.hierarchicalPath, weight: 0.4 },
+                    { text: metadata.hierarchy.parentDetails?.name || '', weight: 0.3 }
+                ];
+                
+                searchableFields.forEach(field => {
+                    const score = calculateFuzzyScore(searchTerm, field.text) * field.weight;
+                    maxScore = Math.max(maxScore, score);
+                });
+                
+                if (maxScore > 10) { // Minimum threshold
+                    results.push({ component: metadata, score: maxScore });
+                }
+            });
+            
+            // Sort by score descending
+            return results.sort((a, b) => b.score - a.score);
+        }
+        
+        function highlightMatch(text, searchTerm) {
+            if (!searchTerm || !text) return text;
+            
+            const search = searchTerm.toLowerCase();
+            const target = text.toLowerCase();
+            const index = target.indexOf(search);
+            
+            if (index === -1) return text;
+            
+            const before = text.substring(0, index);
+            const match = text.substring(index, index + search.length);
+            const after = text.substring(index + search.length);
+            
+            return `${before}<mark style="background: #fef08a; padding: 0; border-radius: 2px;">${match}</mark>${after}`;
+        }
+
+        let searchTimeout;
+        function handleSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const searchInput = document.getElementById('search-input');
+                searchTerm = searchInput.value.trim();
+                updateSearchUI();
+                renderAll(); // Re-render to apply search filter
+            }, 150); // Debounce for 150ms
+        }
+
+        // Event Handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            // Search input event
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', handleSearch);
+            }
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                    e.preventDefault();
+                    saveChanges();
+                }
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                    e.preventDefault();
+                    searchInput?.focus();
+                }
+                if (e.key === 'Escape' && searchInput === document.activeElement) {
+                    e.preventDefault();
+                    clearSearch();
+                }
+            });
+        });
+
+
+        // Message Handling
+        window.addEventListener('message', event => {
+            const msg = event.data.pluginMessage;
+            if (msg.type === 'selection-updated') {
+                currentData = msg.data;
+                componentChanges = {}; // Clear changes when selection changes
+                selectedComponentIndex = 0; // Reset to first component
+                
+                // Clear search when selection changes
+                const searchInput = document.getElementById('search-input');
+                const searchClear = document.getElementById('search-clear');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchTerm = '';
+                }
+                if (searchClear) {
+                    searchClear.classList.remove('visible');
+                }
+                
+                renderAll();
+            } else if (msg.type === 'rename-success') {
+                isSaving = false;
+                componentChanges = {}; // Clear changes after successful save
+                console.log('Components renamed successfully');
+                renderAll();
+            } else if (msg.type === 'rename-error') {
+                isSaving = false;
+                console.error('Error renaming components:', msg.error);
+                renderAll();
+            }
+        });
+
+        // Initialize
+        parent.postMessage({ pluginMessage: { type: 'get-initial-selection' } }, '*');
+    </script>
+</body>
+</html>
